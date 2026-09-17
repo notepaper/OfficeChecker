@@ -1,0 +1,76 @@
+## .NET / Visual Studio 通用忽略
+
+# 构建产物
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio
+.vs/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.sln.docstates
+*.pidb
+*.svclog
+*.scc
+
+# Rider / VS Code
+.idea/
+.vscode/
+*.sln.iml
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# 测试结果 / 覆盖率
+[Tt]est[Rr]esult/
+[Bb]uild[Ll]og.*
+TestResult.xml
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+coverage*.info
+
+# 发布 / 打包
+[Pp]ublish/
+[Pp]ackage*/
+*.cab
+*.msi
+*.msix
+*.appx
+*.exe.config.bak
+
+# 日志 / 临时 / 备份
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+~$*
+
+# 操作系统
+Thumbs.db
+Desktop.ini
+.DS_Store
+$RECYCLE.BIN/
+
+# 本地敏感配置（按需放行）
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+*.pfx
+*.snk
