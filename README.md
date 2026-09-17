@@ -1,45 +1,47 @@
 # OfficeChecker
 
-> [English](README.en.md) | 中文
+> [中文版](README.zh-CN.md) | English
 
-Windows 桌面版 Microsoft Office 环境检测工具（WinForms，`net8.0-windows`）。
+One-click diagnostics for desktop Microsoft Office on Windows (WinForms, `net8.0-windows`).
 
-点击「检测 Office」按钮，一键完成 Excel / Word / PowerPoint 的六层检测，
-并在文本框中输出完整诊断报告。
+Click the **检测 Office** ("Detect Office") button to run a six-layer check on
+Excel / Word / PowerPoint, with the full report shown in the text box.
 
-## 功能
+## Features
 
-| # | 检测层 | 说明 |
-|---|--------|------|
-| 1 | 注册表证据 | ProgID / CurVer / 主版本 / 安装渠道（MSI / ClickToRun）/ 注册表位数 |
-| 2 | PE 证据 | 读取 EXE 的 PE 头 `Machine` 字段，得到真实机器位数（x86 / x64 / arm64），优先级高于注册表 |
-| 3 | 文件证据 | EXE 的 FileVersion / ProductVersion / 公司名 / 产品名 |
-| 4 | COM 实测 | 真正 `CreateInstance`，读取 `Name` / `Version`，以实测结果为准 |
-| 5 | 程序集证据 | Interop / NetOffice 程序集能否被当前 .NET 运行时加载（三态：Loaded / NotFound / LoadFailed） |
-| 6 | 一致性校验 | 注册表位数 ↔ PE 位数是否一致，不一致时告警并以 PE 为准 |
+| # | Layer | Description |
+|---|-------|-------------|
+| 1 | Registry evidence | ProgID / CurVer / major version / install channel (MSI / ClickToRun) / registry bitness |
+| 2 | PE evidence | Reads the EXE's PE header `Machine` field for the true bitness (x86 / x64 / arm64); takes precedence over the registry |
+| 3 | File evidence | EXE FileVersion / ProductVersion / company name / product name |
+| 4 | Live COM probing | Actually calls `CreateInstance` and reads `Name` / `Version` — the probe result is authoritative |
+| 5 | Assembly evidence | Whether Interop / NetOffice assemblies load in the current .NET runtime (tri-state: Loaded / NotFound / LoadFailed) |
+| 6 | Consistency check | Registry bitness ↔ PE bitness match check, with a warning (PE wins) on mismatch |
 
-实现特点：
+Design notes:
 
-- 不依赖 `Microsoft.Office.Interop.*`、NetOffice、`dynamic`，手写 `IDispatch` 后期绑定。
-- x64 进程 + x86 Office **不算错误**：Office COM Server 是独立 EXE，跨进程通信，最终以 COM 实测结果为准。
-- 附带 `ProbeAutomationSmokeTest`：进一步验证能否创建 Workbook / Documents / Presentations 等基础文档对象。
+- No dependency on `Microsoft.Office.Interop.*`, NetOffice, or `dynamic` — hand-written `IDispatch` late binding.
+- x64 process + x86 Office is **not** an error: Office COM servers are standalone
+  EXEs reached via out-of-process COM, so the live probe result is what counts.
+- `ProbeAutomationSmokeTest` goes one step further and verifies that basic
+  document objects (Workbook / Documents / Presentations) can be created.
 
-## 环境要求
+## Requirements
 
-- Windows 10/11（COM 自动化仅支持 Windows）
-- .NET 8 SDK 或 Visual Studio 2022 17.8+
-- 无需 NuGet 包（`Microsoft.Win32.Registry` 在 `net8.0-windows` 中内置）
+- Windows 10/11 (COM automation is Windows-only)
+- .NET 8 SDK or Visual Studio 2022 17.8+
+- No NuGet packages needed (`Microsoft.Win32.Registry` is built into `net8.0-windows`)
 
-## 快速开始
+## Quick start
 
 ```powershell
 dotnet build OfficeChecker.csproj -c Debug
 dotnet run --project OfficeChecker.csproj
 ```
 
-或用 Visual Studio 打开 `OfficeChecker.sln`，F5 运行，点击「检测 Office」。
+Or open `OfficeChecker.sln` in Visual Studio, press F5, then click 「检测 Office」.
 
-## 输出示例
+## Sample output
 
 ```text
 进程位数: x64
@@ -59,55 +61,58 @@ dotnet run --project OfficeChecker.csproj
 ...
 ```
 
-## 在其他项目中复用
+## Reusing it in your own project
 
-`OfficeDetector.cs` 是自包含单文件（命名空间 `OfficeProbe`），直接复制到
-`net8.0-windows` 项目即可使用：
+`OfficeDetector.cs` is a self-contained single file (namespace `OfficeProbe`).
+Copy it into any `net8.0-windows` project:
 
 ```csharp
-// 完整报告（推荐）
+// Full report (recommended)
 OfficeDetectionReport report = OfficeDetector.DetectFull("Excel");
 if (report.ComReady)
 {
-    // COM 可用，以实测为准
+    // COM works — trust the live probe
 }
 
-// 仅基础信息（不启动 Office 进程）
+// Basic info only (does not start an Office process)
 OfficeAppInfo info = OfficeDetector.Detect("Word");
 
-// 文档级冒烟测试（会创建再关闭一个空文档）
+// Document-level smoke test (creates, then closes, an empty document)
 ComProbeResult smoke = OfficeDetector.ProbeAutomationSmokeTest("Excel.Application");
 ```
 
-`"Excel"` / `"Word"` / `"PowerPoint"` 为合法参数，其他值抛 `ArgumentException`。
+Valid arguments are `"Excel"` / `"Word"` / `"PowerPoint"`; anything else throws `ArgumentException`.
 
-## 常见问题
+## FAQ
 
-- **Interop / NetOffice 显示 NotFound？**
-  正常。表示项目未引用这些程序集。后期绑定不需要它们；
-  只有需要早绑定（智能提示、编译期检查）时才引用对应 NuGet。
+- **Interop / NetOffice shows NotFound?**
+  Normal — it just means the project doesn't reference those assemblies.
+  Late binding doesn't need them; only add the NuGet package if you want
+  early binding (IntelliSense, compile-time checking).
 
-- **程序是 x64，Office 是 x86，有影响吗？**
-  进程外 COM 调用不受影响（实测 OK 即可放心）。
-  只有进程内场景（VSTO 插件、DLL 注入）和 32 位 Excel 约 2GB 内存上限需要注意。
+- **My app is x64 but Office is x86 — is that a problem?**
+  Not for out-of-process COM calls (a successful probe means you're fine).
+  Only in-process scenarios (VSTO add-ins, DLL injection) and the ~2GB memory
+  limit of 32-bit Excel need attention.
 
-- **COM 实测失败 `0x8001010A`？**
-  Office 正忙（有模态弹窗等待人工输入），关掉弹窗后重试。
+- **Probe fails with `0x8001010A`?**
+  Office is busy (a modal dialog is waiting for input). Dismiss it and retry.
 
-- **批量读写文件很慢？**
-  大批量读写建议用 ClosedXML / Open XML SDK（不起 Office 进程、无弹窗、
-  无残留进程），COM 只留给必须用 Office 原生功能的场景（如打印、宏、复杂排版）。
+- **Bulk file processing is slow?**
+  Prefer ClosedXML / Open XML SDK for bulk read/write (no Office process,
+  no dialogs, no leftover processes). Keep COM for features that genuinely
+  need Office itself (printing, macros, complex layout).
 
-- **微软官方不支持在无人值守服务器上做 Office 自动化**，
-  服务端场景请直接使用 Open XML 方案。
+- **Microsoft does not support Office automation on unattended servers** —
+  use the Open XML approach for server-side scenarios.
 
-## 项目结构
+## Project layout
 
 ```text
-OfficeChecker.csproj      项目文件（net8.0-windows， WinExe）
-OfficeChecker.sln         解决方案
-Program.cs                程序入口（STAThread）
-Form1.cs                  检测按钮点击逻辑（调用 DetectFull 并展示报告）
-Form1.Designer.cs         窗体布局（按钮 + 结果文本框）
-OfficeDetector.cs         检测库本体（可独立复用）
+OfficeChecker.csproj      Project file (net8.0-windows, WinExe)
+OfficeChecker.sln         Solution
+Program.cs                Entry point (STAThread)
+Form1.cs                  Button-click logic (calls DetectFull, shows report)
+Form1.Designer.cs         Form layout (button + result text box)
+OfficeDetector.cs         The detection library (reusable standalone)
 ```
