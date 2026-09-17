@@ -1,5 +1,7 @@
 # OfficeChecker
 
+> [English](README.en.md) | 中文
+
 Windows 桌面版 Microsoft Office 环境检测工具（WinForms，`net8.0-windows`）。
 
 点击「检测 Office」按钮，一键完成 Excel / Word / PowerPoint 的六层检测，
